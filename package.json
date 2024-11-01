@@ -1,7 +1,13 @@
 {
-  "name": "curl-template",
-  "module": "index.ts",
+  "name": "safe-crud",
+  "version": "0.0.1",
+  "description": "A package for safe CRUD operations",
+  "module": "src/index.ts",
+  "main": "dist/index.js",
   "type": "module",
+  "scripts": {
+    "build": "bun build src/**/*.ts --outdir=dist"
+  },
   "devDependencies": {
     "@types/bun": "latest"
   },
