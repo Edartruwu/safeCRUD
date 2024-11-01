@@ -5,13 +5,13 @@ import { buildUrl } from "../utils/toolkit";
 import { HttpError, ValidationError } from "../utils/classes";
 
 /**
- * Configuration options for the POST request.
+ * Configuration options for the GET request.
  */
-export interface PostConfig<T, R> {
+export interface GetConfig<R> {
   url?: string;
   baseUrl?: string;
   route?: string;
-  body?: T;
+  queryParams?: Record<string, string | number | boolean>;
   contentType?: ContentType;
   schema?: ZodSchema<R>;
   safeParse?: boolean;
@@ -20,60 +20,44 @@ export interface PostConfig<T, R> {
 }
 
 /**
- * Sends a POST request with improved type safety and error handling.
+ * Sends a GET request with improved type safety and error handling.
  *
- * @template T - Type of the request body.
  * @template R - Type of the expected response data after validation or parsing.
  *
- * @param {PostConfig<T, R>} config - Configuration options for the POST request.
+ * @param {GetConfig<R>} config - Configuration options for the GET request.
  * @returns {Promise<R>} - Returns the parsed response data.
  *
  * @throws {HttpError} - Throws when the response is not OK.
  * @throws {ValidationError} - Throws when schema validation fails.
  * @throws {Error} - Throws for other errors (e.g., network issues, parsing failures).
  */
-export async function POST<T, R>({
+export async function GET<R>({
   url,
   baseUrl,
   route,
-  body,
+  queryParams,
   contentType = ContentType.JSON,
   schema,
   safeParse = false,
   additionalHeaders = {},
   parseResponse,
-}: PostConfig<T, R>): Promise<R> {
+}: GetConfig<R>): Promise<R> {
   const fullUrl = buildUrl(baseUrl, route, url);
 
-  if (body === undefined) {
-    throw new Error("Body must be provided");
-  }
+  // Append query parameters to the URL if provided
+  const urlWithParams = queryParams
+    ? appendQueryParams(fullUrl, queryParams)
+    : fullUrl;
 
   const headers: HeadersInit = {
-    "Content-Type": contentType,
+    Accept: contentType, // Use Accept header for GET requests
     ...additionalHeaders,
   };
 
-  const requestBody: BodyInit = (() => {
-    switch (contentType) {
-      case ContentType.JSON:
-        return JSON.stringify(body);
-      case ContentType.FORM_URLENCODED:
-        return new URLSearchParams(body as Record<string, string>).toString();
-      case ContentType.TEXT:
-      case ContentType.XML:
-      case ContentType.HTML:
-        return body as string;
-      default:
-        throw new Error(`Unsupported Content-Type: ${contentType}`);
-    }
-  })();
-
   try {
-    const response = await fetch(fullUrl, {
-      method: "POST",
+    const response = await fetch(urlWithParams, {
+      method: "GET",
       headers,
-      body: requestBody,
     });
 
     if (!response.ok) {
@@ -118,4 +102,21 @@ export async function POST<T, R>({
       }`,
     );
   }
+}
+
+/**
+ * Appends query parameters to a given URL.
+ * @param {string} url - The base URL.
+ * @param {Record<string, string | number | boolean>} params - The query parameters.
+ * @returns {string} - The URL with appended query parameters.
+ */
+function appendQueryParams(
+  url: string,
+  params: Record<string, string | number | boolean>,
+): string {
+  const urlObj = new URL(url);
+  Object.entries(params).forEach(([key, value]) => {
+    urlObj.searchParams.append(key, String(value)); // Convert value to string
+  });
+  return urlObj.toString();
 }
